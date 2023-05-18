@@ -117,3 +117,121 @@ The main objective of this function following accessing the Microsoft Graph API 
 
 Once the loop finishes we return back the pandas DataFrame and **only return back user accounts that are enabled.**
 
+## UpdateAzureActiveDirectory Function
+```python
+def UpdateAzureActiveDirectory(access_token, merge_cloud_df):
+    cloud_split = numpy.array_split(merge_cloud_df, 10)
+    index = 0
+    log_dict = {
+        "Name": [], 
+        "Email": [], 
+        "Title": [],
+        "Department": [],
+        "Manager": [],
+        "ManagerEmail": [],
+        "Status": []
+    }
+
+    for index in range(len(cloud_split)):
+        for key, value in cloud_split[index].iterrows():
+            department = value['Team']
+            employeeName = value['Name']
+            employeeEmail = value['Employee_Email']
+            jobTitle = value['Title']
+            managerName = value['ManagerName']
+            managerEmail = value['ManagerEmail']
+        
+            print(f"Team: {department}")
+            print(f"Employee: {employeeName}, Email: {employeeEmail}, JobTitle: {jobTitle}, Manager Email: {managerEmail}")
+            
+            try:
+                logStatus = "SUCCESS!"
+                print("Calling Graph Execution!")
+                MSGraphProfileUpdate(access_token, employeeEmail, managerEmail, department, jobTitle)
+                print("OPERATION SUCCESSFUL!!!\n")
+                log_dict["Name"].append(value['EmployeeName'])
+                log_dict["Email"].append(value['Email'])
+                log_dict["Title"].append(value['Title'])
+                log_dict["Department"].append(value['Team'])
+                log_dict["Manager"].append(value['ManagerName'])
+                log_dict["ManagerEmail"].append(value['ManagerEmail'])
+                log_dict["Status"].append(logStatus)
+                time.sleep(5)
+            except Exception as e:
+                print(e)
+                print("Operation Failed!")
+                print(f"Employee: {employeeName}, Email: {employeeEmail}, JobTitle: {jobTitle}, Manager: {managerName}, Manager Email: {managerEmail}")
+                print("\n\n")
+                logStatus = "FAILIED!"
+                log_dict["Name"].append(value['EmployeeName'])
+                log_dict["Email"].append(value['Email'])
+                log_dict["Title"].append(value['Title'])
+                log_dict["Department"].append(value['Team'])
+                log_dict["Manager"].append(value['ManagerName'])
+                log_dict["ManagerEmail"].append(value['ManagerEmail'])
+                log_dict["Status"].append(logStatus)
+
+        print(f"Round {index} Completed...\n")
+        print()
+
+    custom_df = pd.DataFrame.from_dict(log_dict)
+    print("custom")
+    print(custom_df)
+    custom_file = "AzureADProfileLogs.xlsx"
+    custom_df.to_excel(custom_file, index=False, header=True)
+    sendEmail("Azure AD Profile Updates are now complete!", "Employee Profiles for fields Title, Department and Manager have been updated!", custom_file)
+    deleteLogFile(Path(custom_file))
+```
+The objective of this function is to start the process of updating the selected fields in Azure Active Directory. The function splits ***merge_cloud_df*** into 10 blocks to breakdown the updating process.  
+In order to update the selected fields we will have to make a **patch request** to Microsoft Graph API. Within this function I construct a log file of all operations whether they are successful or failed to update.  
+The main line making the call is:
+```python 
+MSGraphProfileUpdate(access_token, employeeEmail, managerEmail, department, jobTitle) 
+```
+
+## MSGraphProfileUpdate Function
+```python
+def MSGraphProfileUpdate(access_token, user_upn, new_manager_upn, new_department, job_title):
+   
+    url = f"https://graph.microsoft.com/v1.0/users/{user_upn}"
+ 
+    headers = {
+        "Authorization": "Bearer " + access_token
+    }
+    
+    response = requests.get(url, headers=headers)
+    user = response.json()
+    response = requests.get(f"https://graph.microsoft.com/v1.0/users/{new_manager_upn}", headers=headers)
+    new_manager = response.json()
+
+    # Define the request body
+    data = {
+        "manager@odata.bind": f"https://graph.microsoft.com/v1.0/users/{new_manager['id']}",
+        "department": new_department,
+        "jobTitle": job_title,
+    }
+
+    # Define the headers
+    headers = {
+        "Authorization": "Bearer " + access_token,
+        "Content-Type": "application/json"
+    }
+
+
+    #print("Output:", data)
+    #print()
+    # Send the PATCH request to update the user's Manager and Department properties
+    response = requests.patch(url, headers=headers, data=json.dumps(data))
+
+    # Check the response status code
+    if response.status_code == 204:
+        print(f"Manager and Department properties updated successfully for user {user_upn}.")
+    else:
+        print(response.text)
+        print(f"Error updating Manager and Department properties for user {user_upn}: " + response.text)
+    
+    print("Standby For next execution Run...\n")
+    time.sleep(3)
+```
+The previous function ***UpdateAzureActiveDirectory*** makes the function call to ***MSGraphProfileUpdate*** and takes the parameter arguments and proceeds with making the update.  
+Due to the fact that the update is done via an **HTTP request**, I added a **time.sleep() method** to cause a delay following the update of a user account record since this process is being done within a loop. 
