@@ -1,0 +1,15 @@
+schedules:
+- cron: "0 14 * * *"
+  displayName: Runs Daily at 10:00am EST
+  branches:
+    include: 
+    - main
+  always: true
+jobs:
+- job: Linux
+  pool:
+    name: DevOpsPool
+  steps:
+  - script: |
+       python3 app.py
+    displayName: "Run app.py" 

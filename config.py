@@ -1,0 +1,11 @@
+client_id = 'ENTER CLIENT ID HERE'
+tenant_id = 'ENTER TENANT ID HERE'
+client_secret = 'ENTER CLIENT SECRET HERE'
+secret_id = 'ENTER SECRET ID HERE'
+sf_username = 'ENTER SF USERNAME HERE'
+sf_passwd = 'ENTER SF PASSWORD HERE'
+sf_token = 'ENTER SF TOKEN HERE'
+smtp_host =  "smtp.office365.com"
+smtp_user = "ENTER SERVICE ACCOUNT USERNAME FOR SMTP ALERT"
+smtp_passwd = "ENTER SERVICE ACCOUNT PASSWORD FOR SMTP ALERT"
+port = 587
